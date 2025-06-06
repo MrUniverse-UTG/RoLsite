@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Creature Stat Block Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Literata&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Literata', serif;
+      background: #f5f5f5;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    #statBlockForm {
+      border: 2px solid #333;
+      padding: 10px 12px;
+      background: white;
+      max-width: 1100px;
+      margin: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      margin: 4px 0;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 110px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      font-family: 'Literata', serif;
+    }
+
+    .section-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .section-column {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    #name, #cl {
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 2px 6px;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      font-weight: bold;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid #aaa;
+      margin: 8px 0;
+      grid-column: 1 / -1;
+    }
+
+    @media (min-width: 900px) {
+      #renderedOutput > div {
+        column-count: 2;
+        column-gap: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="statBlockForm">
+  <h2 style="grid-column: 1 / -1;">Creature Stat Block Generator</h2>
+
+  <!-- Basic Info -->
+  <div class="section-row" style="grid-column: 1 / -1;">
+    <label>Name: <input type="text" id="name"></label>
+    <label>CL: <input type="number" id="cl"></label>
+    <label>Type & Size: <input type="text" id="typeSize"></label>
+    <label>Theme: <input type="text" id="theme"></label>
+  </div>
+
+  <!-- Points -->
+  <div class="section-row" style="grid-column: 1 / -1;">
+    <label>HP: <input type="number" id="hp"></label>
+    <label>DP: <input type="number" id="dp"></label>
+    <label>MP: <input type="number" id="mp"></label>
+    <label>Sorce: <input type="text" id="sorce"></label>
+  </div>
+
+  <!-- Attributes -->
+  <div class="section-column" style="grid-column: 1 / -1;">
+    <b>Attributes</b>
+    <label>STR: <input type="number" id="STR" value="0" onchange="updateAllModifiers()"></label>
+    <label>AGI: <input type="number" id="AGI" value="0" onchange="updateAllModifiers()"></label>
+    <label>WIT: <input type="number" id="WIT" value="0" onchange="updateAllModifiers()"></label>
+    <label>EMP: <input type="number" id="EMP" value="0" onchange="updateAllModifiers()"></label>
+  </div>
+
+  <!-- Skills Table -->
+  <div style="grid-column: 1 / -1;">
+    <table border="1" cellpadding="4">
+      <tr><th>Skill</th><th>Base</th><th>Attribute</th><th>Modifier</th></tr>
+      <tbody id="skillsTable"></tbody>
+    </table>
+  </div>
+  <!-- Traits -->
+  <hr class="section-divider">
+  <div class="section-column" style="grid-column: 1 / -1;">
+    <b>Traits</b>
+    <label>HP Resistance: <input type="text" id="hpRes"></label>
+    <label>HP Vulnerability: <input type="text" id="hpVul"></label>
+    <label>HP Immunity: <input type="text" id="hpImm"></label>
+    <label>MP Resistance: <input type="text" id="mpRes"></label>
+    <label>MP Vulnerability: <input type="text" id="mpVul"></label>
+    <label>MP Immunity: <input type="text" id="mpImm"></label>
+    <label>DP Resistance: <input type="text" id="dpRes"></label>
+    <label>DP Vulnerability: <input type="text" id="dpVul"></label>
+    <label>DP Immunity: <input type="text" id="dpImm"></label>
+    <label>Condition Immunity: <input type="text" id="condImm"></label>
+    <label>Speed: <input type="text" id="speed" value="30"></label>
+    <label>Language(s): <input type="text" id="langs" value="none"></label>
+    <label>Senses: <input type="text" id="senses" value="normal"></label>
+  </div>
+
+  <!-- Toggle Passives -->
+  <hr class="section-divider">
+  <div class="toggle-label" style="grid-column: 1 / -1;">
+    <input type="checkbox" id="passiveToggle" onchange="toggleSection('passives')">
+    <label for="passiveToggle">Passives?</label>
+  </div>
+  <div id="passives" style="display:none; grid-column: 1 / -1;">
+    <b>Passives:</b>
+    <button onclick="addField('passives')">Add Passive</button>
+  </div>
+
+  <!-- Standard Actions -->
+  <hr class="section-divider">
+  <div id="standard" style="grid-column: 1 / -1;">
+    <b>Standard Actions:</b>
+    <button onclick="addStandardAction()">Add Standard Action</button>
+  </div>
+
+  <!-- Quick Actions -->
+  <hr class="section-divider">
+  <div class="toggle-label" style="grid-column: 1 / -1;">
+    <input type="checkbox" id="quickToggle" onchange="toggleSection('quick')">
+    <label for="quickToggle">Quick Actions?</label>
+  </div>
+  <div id="quick" style="display:none; grid-column: 1 / -1;">
+    <b>Quick Actions:</b>
+    <button onclick="addField('quick')">Add Quick Action</button>
+  </div>
+
+  <!-- Reactions -->
+  <hr class="section-divider">
+  <div class="toggle-label" style="grid-column: 1 / -1;">
+    <input type="checkbox" id="reactionToggle" onchange="toggleSection('reaction')">
+    <label for="reactionToggle">Reactions?</label>
+  </div>
+  <div id="reaction" style="display:none; grid-column: 1 / -1;">
+    <b>Reactions:</b>
+    <button onclick="addField('reaction')">Add Reaction</button>
+  </div><br>
+
+  <div style="grid-column: 1 / -1;">
+    <button onclick="renderStatBlock()">Generate Stat Block</button>
+    <button onclick="downloadImage()">Download Image</button>
+    <div id="renderedOutput" style="display:none; border:2px solid black; padding:10px; margin-top:12px; background:#fff;"></div>
+  </div>
+</div>
+<script>
+const skills = {
+  STR: ["Brawl", "Might", "Endure", "Intimidate"],
+  AGI: ["Shoot", "Move", "Finesse", "Hide"],
+  WIT: ["Analyze", "Insight", "Scout", "Survival"],
+  EMP: ["Manipulate", "Perform", "Medical", "Tame"]
+};
+
+function initSkills() {
+  const tbody = document.getElementById("skillsTable");
+  tbody.innerHTML = "";
+  for (const [attr, list] of Object.entries(skills)) {
+    list.forEach(skill => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${skill}</td>
+        <td><input type="number" value="0" class="skillBase" data-attr="${attr}" style="width:50px;" onchange="calcMod(this)"></td>
+        <td>${attr}</td>
+        <td class="mod">(-0)</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  updateAllModifiers();
+}
+
+function calcMod(input) {
+  const attr = input.dataset.attr;
+  const attrVal = parseInt(document.getElementById(attr).value) || 0;
+  const base = parseInt(input.value) || 0;
+  const modifier = Math.floor((base + attrVal) / 3);
+  input.parentElement.parentElement.querySelector(".mod").textContent = `(-${modifier})`;
+}
+
+function updateAllModifiers() {
+  document.querySelectorAll(".skillBase").forEach(input => calcMod(input));
+}
+
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+function addField(section) {
+  const container = document.getElementById(section);
+  const div = document.createElement("div");
+  div.innerHTML = `<label>Name: <input type="text" class="entryName" style="width:200px;"></label><br>
+    <textarea rows="2" style="width:90%;"></textarea> <button onclick="this.parentElement.remove()">X</button>`;
+  container.appendChild(div);
+}
+
+function addStandardAction() {
+  const container = document.getElementById("standard");
+  const wrapper = document.createElement("div");
+  wrapper.style.marginBottom = "8px";
+  wrapper.innerHTML = `
+    <hr>
+    <label><input type="radio" name="actionType${Date.now()}" value="attack" onchange="toggleStandardActionFields(this)"> Attack</label>
+    <label><input type="radio" name="actionType${Date.now()}" value="ability" onchange="toggleStandardActionFields(this)"> Ability</label>
+    <div class="standardFields"></div>
+    <button onclick="this.closest('div').remove()">Delete Action</button>
+  `;
+  container.appendChild(wrapper);
+}
+
+function toggleStandardActionFields(radio) {
+  const wrapper = radio.closest("div");
+  const target = wrapper.querySelector(".standardFields");
+  target.innerHTML = radio.value === "attack"
+    ? `<div><b>Attack</b></div>
+       <label>Name: <input type="text" class="atkName"></label><br>
+       <label>Features:<br><input type="text" class="atkFeat"></label><br>
+       <label>To Hit:<br><input type="text" class="atkHit"></label><br>
+       <label>Damage:<br><input type="text" class="atkDmg"></label><br>
+       <label>Effect:<br><input type="text" class="atkEff"></label><br>`
+    : `<div><b>Ability</b></div>
+       <label>Name: <input type="text" class="abilName"></label><br>
+       <label>Effect:<br> <textarea class="abilEff" rows="3" style="width:90%"></textarea></label><br>`;
+}
+
+function renderStatBlock() {
+  const name = document.getElementById("name").value;
+  const cl = document.getElementById("cl").value;
+  const typeSize = document.getElementById("typeSize").value;
+  const theme = document.getElementById("theme").value;
+  const hp = document.getElementById("hp").value;
+  const dp = document.getElementById("dp").value;
+  const mp = document.getElementById("mp").value;
+  const sorce = document.getElementById("sorce").value;
+
+  let skillsHTML = '<table border="1" cellpadding="4" style="border-collapse:collapse; width:100%; margin-bottom:10px;">';
+  for (const attr of ["STR", "AGI", "WIT", "EMP"]) {
+    const attrVal = parseInt(document.getElementById(attr).value) || 0;
+    const attrMod = Math.floor(attrVal / 3);
+    skillsHTML += `<tr style="background:#eee;"><th colspan="3">${attr} ${attrVal} (-${attrMod})</th></tr>`;
+    skills[attr].forEach(skill => {
+      const row = [...document.querySelectorAll("#skillsTable tr")].find(r => r.children[0].textContent === skill);
+      if (row) {
+        const base = parseInt(row.querySelector("input").value);
+        if (base !== 0) {
+          const mod = row.querySelector(".mod").textContent;
+          skillsHTML += `<tr><td>${skill}</td><td>${base}</td><td>${mod}</td></tr>`;
+        }
+      }
+    });
+  }
+  skillsHTML += "</table>";
+
+  function getVal(id, label) {
+    const v = document.getElementById(id)?.value;
+    return v ? `<b>${label}</b> ${v}<br>` : "";
+  }
+
+  let traitsHTML = `<div><b>Traits</b><br>`;
+  traitsHTML += getVal("hpRes", "HP Resistance:");
+  traitsHTML += getVal("hpVul", "HP Vulnerability:");
+  traitsHTML += getVal("hpImm", "HP Immunity:");
+  traitsHTML += getVal("mpRes", "MP Resistance:");
+  traitsHTML += getVal("mpVul", "MP Vulnerability:");
+  traitsHTML += getVal("mpImm", "MP Immunity:");
+  traitsHTML += getVal("dpRes", "DP Resistance:");
+  traitsHTML += getVal("dpVul", "DP Vulnerability:");
+  traitsHTML += getVal("dpImm", "DP Immunity:");
+  traitsHTML += getVal("condImm", "Condition Immunity:");
+  traitsHTML += getVal("speed", "Speed:");
+  traitsHTML += getVal("langs", "Languages:");
+  traitsHTML += getVal("senses", "Senses:");
+  traitsHTML += "</div>";
+
+  function sectionHTML(sectionId, title) {
+    const toggle = document.getElementById(sectionId + "Toggle");
+    if (toggle && !toggle.checked) return "";
+    const section = document.getElementById(sectionId);
+    const items = section?.querySelectorAll("div");
+    if (!items || items.length === 0) return "";
+    let html = `<div><hr><b>${title}</b><ul>`;
+    items.forEach(div => {
+      const name = div.querySelector(".entryName")?.value || "";
+      const text = div.querySelector("textarea")?.value || "";
+      if (text || name) html += `<li><b>${name}</b>: ${text}</li>`;
+    });
+    html += "</ul></div>";
+    return html;
+  }
+
+  function standardActionsHTML() {
+    let html = "<div><hr><b>Standard Actions:</b><ul>";
+    document.querySelectorAll("#standard .standardFields").forEach(container => {
+      if (container.querySelector(".atkName")) {
+        const name = container.querySelector(".atkName").value;
+        const feat = container.querySelector(".atkFeat").value;
+        const hit = container.querySelector(".atkHit").value;
+        const dmg = container.querySelector(".atkDmg").value;
+        const eff = container.querySelector(".atkEff").value;
+        html += `<li><b>${name}</b><br>`;
+        if (feat) html += `Feature: ${feat}<br>`;
+        if (hit) html += `To Hit: ${hit}<br>`;
+        if (dmg) html += `Damage: ${dmg}<br>`;
+        if (eff) html += `Effect: ${eff}<br>`;
+        html += `</li>`;
+      } else if (container.querySelector(".abilName")) {
+        const name = container.querySelector(".abilName").value;
+        const eff = container.querySelector(".abilEff").value;
+        html += `<li><b>${name}</b><br>${eff}</li>`;
+      }
+    });
+    html += "</ul></div>";
+    return html;
+  }
+
+  document.getElementById("renderedOutput").innerHTML = `
+    <div style="font-family:'Literata', serif; padding:8px; border:2px solid #000; background:#fff;">
+      <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:18px; border-bottom:2px solid black; margin-bottom:10px;">
+        <div><div>${name}</div><div>${typeSize}</div></div>
+        <div style="text-align:right;"><div>CL ${cl}</div><div>${theme}</div></div>
+      </div>
+      <div><b>HP:</b> ${hp} | <b>DP:</b> ${dp} | <b>MP:</b> ${mp} | <b>Sorce:</b> ${sorce}</div><br>
+      ${skillsHTML}
+      ${traitsHTML}<br>
+      ${sectionHTML("passives", "Passives")}
+      ${standardActionsHTML()}
+      ${sectionHTML("quick", "Quick Actions")}
+      ${sectionHTML("reaction", "Reactions")}
+    </div>`;
+  document.getElementById("renderedOutput").style.display = "block";
+}
+
+function downloadImage() {
+  html2canvas(document.querySelector("#renderedOutput")).then(canvas => {
+    const link = document.createElement('a');
+    link.download = 'statblock.png';
+    link.href = canvas.toDataURL();
+    link.click();
+  });
+}
+
+window.onload = initSkills;
+</script>
+</body>
+</html>
